@@ -41,8 +41,25 @@ def main():
         action="store_true",
         help="Include terminal history in the prompt. Note: This feature may potentially send sensitive information to OpenAI and increase the number of tokens used.",
     )
+    parser.add_argument(
+        "-m",
+        "--model",
+        type=str,
+        default="davinci",
+        help="Specify the model to use. Defaults to davinci. Choices are davinci, curie, babbage, ada.",
+        choices=["davinci", "curie", "babbage", "ada"],
+        metavar="\b",
+        )
 
     args = parser.parse_args()
+    
+    model_options = {
+        "davinci": "text-davinci-003",
+        "curie": "text-curie-001",
+        "babbage": "text-babbage-001",
+        "ada": "text-ada-001",
+    }
+    args.model = model_options[args.model]
 
     if args.verbose:
         print("Verbose mode enabled")
@@ -112,11 +129,11 @@ The command the user is looking for is:
         print("To set the environment variable, run:")
         print("export OPENAI_API_KEY=<your key>")
         sys.exit(1)
-    cmd = request_cmds(prompt, n=1)[0]
-    show_command_options(prompt, cmd)
+    cmd = request_cmds(prompt, args.model, n=1)[0]
+    show_command_options(prompt, cmd, args.model)
 
 
-def show_command_options(prompt, cmd):
+def show_command_options(prompt, cmd, model):
     operating_system = platform.system()
 
     print(f"\033[94m> {cmd}\033[0m")
@@ -148,7 +165,7 @@ def show_command_options(prompt, cmd):
         print("> explainshell: " + link)
         subprocess.run(["open", "https://explainshell.com/explain?cmd=" + quote(cmd)])
     elif menu_entry_index == 3:
-        show_more_cmd_options(prompt)
+        show_more_cmd_options(prompt, model)
 
 
 def execute(cmd):
@@ -156,10 +173,10 @@ def execute(cmd):
     history.save(cmd)
 
 
-def show_more_cmd_options(prompt):
+def show_more_cmd_options(prompt, model):
     operating_system = platform.system()
 
-    cmds = request_cmds(prompt, n=5)
+    cmds = request_cmds(prompt, model, n=5)
     print("Here are more options:")
     options = [repr(cmd) for cmd in cmds]
 
@@ -180,12 +197,12 @@ def show_more_cmd_options(prompt):
         cmd_menu_entry_index = options.index(answers["cmd_menu_entry_index"])
 
     if cmd_menu_entry_index is not None:
-        show_command_options(prompt, cmds[cmd_menu_entry_index])
+        show_command_options(prompt, cmds[cmd_menu_entry_index], model)
 
 
-def request_cmds(prompt, n=1):
+def request_cmds(prompt, model, n=1):
     response = openai.Completion.create(
-        model="text-davinci-003",
+        model=model,
         prompt=prompt,
         temperature=0.7,
         max_tokens=256,
